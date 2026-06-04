@@ -137,7 +137,7 @@
         "toEmail": "mohamed.emad941227@gmail.com",
         "subject": "=🔥 New Qualified Lead - {{ $json.lead_percentage }}",
         "emailFormat": "text",
-        "text": "=🔥 New Qualified Lead\n\nName: {{ $json.first_name }}\nUsername: @{{ $json.username }}\n\nLead Percentage: {{ $json.lead_percentage }}\nLead Score: {{ $json.lead_score }}/100\nStatus: {{ $json.lead_status }}\n\nNeed:\n{{ $json.need }}\n\nBuying Intent:\n{{ $json.buying_intent }}\n\nBudget:\n{{ $json.budget }}\n\nTimeline:\n{{ $json.timeline }}\n\nSummary:\n{{ $json.sales_summary }}\n\nNext Action:\n{{ $json.next_action }}\n\nOriginal Message:\n{{ $json.customer_message }}\n\nSource:\n{{ $json.source }}",
+        "text": "=🔥 New Qualified Lead\n\nName:\n{{ $('Code in JavaScript').item.json.first_name }}\n\nUsername:\n@{{ $('Code in JavaScript').item.json.username }}\n\nLead Percentage:\n{{ $('Code in JavaScript').item.json.lead_percentage }}\n\nLead Score:\n{{ $('Code in JavaScript').item.json.lead_score }}/100\n\nStatus:\n{{ $('Code in JavaScript').item.json.lead_status }}\n\nNeed:\n{{ $('Code in JavaScript').item.json.need }}\n\nBuying Intent:\n{{ $('Code in JavaScript').item.json.buying_intent }}\n\nBudget:\n{{ $('Code in JavaScript').item.json.budget }}\n\nTimeline:\n{{ $('Code in JavaScript').item.json.timeline }}\n\nSummary:\n{{ $('Code in JavaScript').item.json.sales_summary }}\n\nOriginal Message:\n{{ $('Code in JavaScript').item.json.customer_message }}",
         "options": {}
       },
       "type": "n8n-nodes-base.emailSend",
@@ -609,7 +609,7 @@
     "executionOrder": "v1",
     "binaryMode": "separate"
   },
-  "versionId": "a667f117-f7fb-4856-b0c3-e8a2c304de93",
+  "versionId": "f4aff0ce-8b2f-499d-9063-173f34c1a794",
   "meta": {
     "templateCredsSetupCompleted": true,
     "instanceId": "7ec7ef01c4cf0f0f03e7d557ff85839cece5fcaa498b18995a1d6c9f555c9ec0"
