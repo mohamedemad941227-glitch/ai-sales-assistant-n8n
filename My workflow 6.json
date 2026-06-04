@@ -1,0 +1,619 @@
+{
+  "name": "My workflow 6",
+  "nodes": [
+    {
+      "parameters": {
+        "updates": [
+          "message"
+        ],
+        "additionalFields": {}
+      },
+      "type": "n8n-nodes-base.telegramTrigger",
+      "typeVersion": 1.3,
+      "position": [
+        -368,
+        -96
+      ],
+      "id": "110c80c2-f7e8-490a-bd8b-714006c4c7c5",
+      "name": "Telegram Trigger",
+      "webhookId": "90821267-5b94-4b9e-8ad3-21e0c9d048c1",
+      "credentials": {
+        "telegramApi": {
+          "id": "n97tsK6WkU3QjJTx",
+          "name": "Telegram account 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "modelId": {
+          "__rl": true,
+          "value": "gpt-4o-mini",
+          "mode": "list",
+          "cachedResultName": "GPT-4O-MINI"
+        },
+        "responses": {
+          "values": [
+            {
+              "content": "=Hi 👋 Please answer these 10 questions so we can understand your business and qualify your request.\n\nReply with 10 numbers only, separated by commas.\nExample:\n3,2,3,2,1,3,2,3,2,3\n\nScoring:\n1 = Low / 0%\n2 = Medium / 50%\n3 = High / 100%\n\n1. What type of business do you have?\n1) Small/local business\n2) Growing business\n3) Established business with active sales\n\n2. What problem do you want to solve?\n1) Just exploring automation\n2) Repetitive customer messages\n3) Losing leads or sales because of slow follow-up\n\n3. Where do your leads come from?\n1) Not sure / no regular leads\n2) One main source\n3) Multiple sources like website, Telegram, Facebook Ads, WhatsApp\n\n4. How many leads/messages do you receive per day?\n1) 0–5\n2) 6–20\n3) 20+\n\n5. What is your budget for this project?\n1) No budget yet\n2) $100–$300\n3) $300+\n\n6. When do you want to start?\n1) Not sure\n2) This month\n3) This week / ASAP\n\n7. Are you the decision maker?\n1) No\n2) Partly / need approval\n3) Yes\n\n8. Do you already use tools like Google Sheets, CRM, Email, Telegram, or WhatsApp?\n1) No tools\n2) Some tools\n3) Yes, and I want them connected\n\n9. How important is this problem for your business?\n1) Low priority\n2) Important\n3) Very urgent\n\n10. What do you want the automation to do?\n1) Basic auto-reply\n2) Collect and organize leads\n3) Qualify leads, follow up, and notify sales team"
+            }
+          ]
+        },
+        "builtInTools": {},
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.openAi",
+      "typeVersion": 2.3,
+      "position": [
+        -160,
+        -96
+      ],
+      "id": "daaba515-9812-4478-8df8-733c40c05097",
+      "name": "Message a model",
+      "credentials": {
+        "openAiApi": {
+          "id": "rpaEqLreDN74rgKv",
+          "name": "OpenAI account 3"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const telegram = $(\"Telegram Trigger\").first().json;\n\nconst chatId = telegram.message.chat.id;\nconst messageText = (telegram.message.text || \"\").trim();\nconst lowerText = messageText.toLowerCase();\n\nconst staticData = $getWorkflowStaticData(\"global\");\n\nif (!staticData.leadSessions) {\n  staticData.leadSessions = {};\n}\n\nconst startWords = [\"hi\", \"hello\", \"hey\", \"/start\", \"start\", \"اهلا\", \"أهلا\", \"مرحبا\", \"هاي\"];\n\n// ===============================\n// Questions\n// ===============================\n\nconst questions = [\n  {\n    key: \"business_type\",\n    text: `Question 1/10\nWhat type of business do you have?\n\n1) Small/local business\n2) Growing business\n3) Established business with active sales`\n  },\n  {\n    key: \"problem\",\n    text: `Question 2/10\nWhat problem do you want to solve?\n\n1) Just exploring automation\n2) Repetitive customer messages\n3) Losing leads or sales because of slow follow-up`\n  },\n  {\n    key: \"lead_source\",\n    text: `Question 3/10\nWhere do your leads come from?\n\n1) Not sure / no regular leads\n2) One main source\n3) Multiple sources like website, Telegram, Facebook Ads, WhatsApp`\n  },\n  {\n    key: \"daily_leads\",\n    text: `Question 4/10\nHow many leads/messages do you receive per day?\n\n1) 0–5\n2) 6–20\n3) 20+`\n  },\n  {\n    key: \"budget\",\n    text: `Question 5/10\nWhat is your budget for this project?\n\n1) No budget yet\n2) $100–$300\n3) $300+`\n  },\n  {\n    key: \"timeline\",\n    text: `Question 6/10\nWhen do you want to start?\n\n1) Not sure\n2) This month\n3) This week / ASAP`\n  },\n  {\n    key: \"decision_maker\",\n    text: `Question 7/10\nAre you the decision maker?\n\n1) No\n2) Partly / need approval\n3) Yes`\n  },\n  {\n    key: \"current_tools\",\n    text: `Question 8/10\nDo you already use tools like Google Sheets, CRM, Email, Telegram, or WhatsApp?\n\n1) No tools\n2) Some tools\n3) Yes, and I want them connected`\n  },\n  {\n    key: \"urgency\",\n    text: `Question 9/10\nHow important is this problem for your business?\n\n1) Low priority\n2) Important\n3) Very urgent`\n  },\n  {\n    key: \"automation_goal\",\n    text: `Question 10/10\nWhat do you want the automation to do?\n\n1) Basic auto-reply\n2) Collect and organize leads\n3) Qualify leads, follow up, and notify sales team`\n  }\n];\n\n// ===============================\n// Option Labels\n// ===============================\n\nconst optionLabels = {\n  business_type: {\n    1: \"Small/local business\",\n    2: \"Growing business\",\n    3: \"Established business with active sales\"\n  },\n  problem: {\n    1: \"Just exploring automation\",\n    2: \"Repetitive customer messages\",\n    3: \"Losing leads or sales because of slow follow-up\"\n  },\n  lead_source: {\n    1: \"Not sure / no regular leads\",\n    2: \"One main source\",\n    3: \"Multiple sources\"\n  },\n  daily_leads: {\n    1: \"0–5\",\n    2: \"6–20\",\n    3: \"20+\"\n  },\n  budget: {\n    1: \"No budget yet\",\n    2: \"$100–$300\",\n    3: \"$300+\"\n  },\n  timeline: {\n    1: \"Not sure\",\n    2: \"This month\",\n    3: \"This week / ASAP\"\n  },\n  decision_maker: {\n    1: \"No\",\n    2: \"Partly / need approval\",\n    3: \"Yes\"\n  },\n  current_tools: {\n    1: \"No tools\",\n    2: \"Some tools\",\n    3: \"Yes, and I want them connected\"\n  },\n  urgency: {\n    1: \"Low priority\",\n    2: \"Important\",\n    3: \"Very urgent\"\n  },\n  automation_goal: {\n    1: \"Basic auto-reply\",\n    2: \"Collect and organize leads\",\n    3: \"Qualify leads, follow up, and notify sales team\"\n  }\n};\n\n// ===============================\n// Helper Functions\n// ===============================\n\nfunction baseOutput(extra) {\n  return [\n    {\n      json: {\n        date: new Date().toISOString(),\n        chat_id: chatId,\n        customer_message: messageText,\n        first_name: telegram.message.from.first_name || \"\",\n        username: telegram.message.from.username || \"\",\n        source: \"Telegram\",\n        ...extra\n      }\n    }\n  ];\n}\n\nfunction scoreAnswer(answer) {\n  if (answer === 1) return 0;\n  if (answer === 2) return 50;\n  if (answer === 3) return 100;\n  return 0;\n}\n\nfunction getLeadStatus(score) {\n  if (score >= 80) return \"Hot Lead\";\n  if (score >= 50) return \"Warm Lead\";\n  return \"Weak Lead\";\n}\n\nfunction getBuyingIntent(score) {\n  if (score >= 80) return \"High\";\n  if (score >= 50) return \"Medium\";\n  return \"Low\";\n}\n\n// ===============================\n// Start / Restart Flow\n// ===============================\n\nif (startWords.includes(lowerText)) {\n  staticData.leadSessions[chatId] = {\n    currentQuestion: 0,\n    answers: []\n  };\n\n  return baseOutput({\n    business_type: \"\",\n    need: \"Questionnaire started\",\n    lead_source: \"\",\n    daily_leads: \"\",\n    budget: \"Pending\",\n    timeline: \"Pending\",\n    decision_maker: \"\",\n    current_tools: \"\",\n    buying_intent: \"Pending\",\n    lead_score: 0,\n    lead_percentage: \"0%\",\n    lead_status: \"Pending\",\n    documentation_sent: \"No\",\n    sales_summary: \"Customer started the 10-question lead qualification flow.\",\n    customer_reply:\n      `Welcome 👋\n\nI will ask you 10 quick questions to understand your request.\nPlease answer each question with only 1, 2, or 3.\n\n${questions[0].text}\n\nRemaining questions: 9`\n  });\n}\n\n// ===============================\n// No Active Session\n// ===============================\n\nif (!staticData.leadSessions[chatId]) {\n  return baseOutput({\n    business_type: \"\",\n    need: \"No active questionnaire\",\n    lead_source: \"\",\n    daily_leads: \"\",\n    budget: \"Unknown\",\n    timeline: \"Unknown\",\n    decision_maker: \"\",\n    current_tools: \"\",\n    buying_intent: \"Unknown\",\n    lead_score: 0,\n    lead_percentage: \"0%\",\n    lead_status: \"Weak Lead\",\n    documentation_sent: \"No\",\n    sales_summary: \"Customer sent a message without starting the questionnaire.\",\n    customer_reply: \"Please type hi to start the 10-question lead qualification process.\"\n  });\n}\n\nconst session = staticData.leadSessions[chatId];\n\n// ===============================\n// Qualification Flow\n// ===============================\n\nconst answer = Number(messageText);\n\nif (![1, 2, 3].includes(answer)) {\n  const currentQuestion = questions[session.currentQuestion];\n\n  return baseOutput({\n    business_type: \"\",\n    need: \"Invalid answer\",\n    lead_source: \"\",\n    daily_leads: \"\",\n    budget: \"Unknown\",\n    timeline: \"Unknown\",\n    decision_maker: \"\",\n    current_tools: \"\",\n    buying_intent: \"Unknown\",\n    lead_score: 0,\n    lead_percentage: \"0%\",\n    lead_status: \"Pending\",\n    documentation_sent: \"No\",\n    sales_summary: \"Customer answered with invalid format.\",\n    customer_reply:\n      `Please answer with only 1, 2, or 3.\n\n${currentQuestion.text}\n\nRemaining questions: ${10 - session.currentQuestion - 1}`\n  });\n}\n\n// Save answer\nsession.answers.push(answer);\nsession.currentQuestion += 1;\n\n// Send next question\nif (session.currentQuestion < questions.length) {\n  const nextQuestion = questions[session.currentQuestion];\n  const remaining = questions.length - session.currentQuestion - 1;\n\n  return baseOutput({\n    business_type: \"\",\n    need: \"Questionnaire in progress\",\n    lead_source: \"\",\n    daily_leads: \"\",\n    budget: \"Pending\",\n    timeline: \"Pending\",\n    decision_maker: \"\",\n    current_tools: \"\",\n    buying_intent: \"Pending\",\n    lead_score: 0,\n    lead_percentage: \"0%\",\n    lead_status: \"Pending\",\n    documentation_sent: \"No\",\n    sales_summary: `Customer answered question ${session.currentQuestion}/10.`,\n    customer_reply:\n      `Thanks ✅\n\n${nextQuestion.text}\n\nRemaining questions: ${remaining}`\n  });\n}\n\n// ===============================\n// Finished 10 Questions\n// ===============================\n\nconst answers = session.answers;\ndelete staticData.leadSessions[chatId];\n\nconst answerScores = answers.map(scoreAnswer);\nconst totalScore = answerScores.reduce((sum, value) => sum + value, 0);\nconst leadScore = Math.round(totalScore / questions.length);\n\nconst leadStatus = getLeadStatus(leadScore);\nconst buyingIntent = getBuyingIntent(leadScore);\n\nconst mapped = {};\nquestions.forEach((question, index) => {\n  mapped[question.key] = optionLabels[question.key][answers[index]];\n});\n\nconst salesSummary = `Lead completed the 10-question qualification flow.\n\nLead Score: ${leadScore}%\nLead Status: ${leadStatus}\n\nBusiness Type: ${mapped.business_type}\nProblem: ${mapped.problem}\nLead Source: ${mapped.lead_source}\nDaily Leads: ${mapped.daily_leads}\nBudget: ${mapped.budget}\nTimeline: ${mapped.timeline}\nDecision Maker: ${mapped.decision_maker}\nCurrent Tools: ${mapped.current_tools}\nUrgency: ${mapped.urgency}\nAutomation Goal: ${mapped.automation_goal}`;\n\nconst customerReply =\n  leadScore >= 70\n    ? `Thank you. Your request has been received successfully.\n\nA member of our sales team will contact you within the next 24 hours to discuss your requirements and the next steps.`\n    : `Thank you for your answers.\n\nOur team will review your request and get back to you if your requirements match our service.`;\n\nreturn baseOutput({\n  business_type: mapped.business_type,\n  need: mapped.automation_goal,\n  lead_source: mapped.lead_source,\n  daily_leads: mapped.daily_leads,\n  budget: mapped.budget,\n  timeline: mapped.timeline,\n  decision_maker: mapped.decision_maker,\n  current_tools: mapped.current_tools,\n  buying_intent: buyingIntent,\n  lead_score: leadScore,\n  lead_percentage: `${leadScore}%`,\n  lead_status: leadStatus,\n  documentation_sent: leadScore >= 70 ? \"Yes\" : \"No\",\n  sales_summary: salesSummary,\n  customer_reply: customerReply\n});"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        192,
+        -96
+      ],
+      "id": "589a5ffd-2277-4259-894f-c730a6c66dd7",
+      "name": "Code in JavaScript"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "9aae44e3-f64e-4ce5-9c8d-27544de33fa4",
+              "leftValue": "={{ $json.lead_score }}",
+              "rightValue": 70,
+              "operator": {
+                "type": "number",
+                "operation": "gte"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        400,
+        -96
+      ],
+      "id": "23d1027d-50a3-4214-9012-4b5175098151",
+      "name": "If"
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $('Code in JavaScript').item.json.chat_id }}",
+        "text": "={{ $('Code in JavaScript').item.json.customer_reply }}",
+        "replyMarkup": "=None",
+        "forceReply": {},
+        "replyKeyboardOptions": {},
+        "replyKeyboardRemove": {},
+        "additionalFields": {
+          "appendAttribution": false
+        }
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        880,
+        48
+      ],
+      "id": "20391957-f35e-4978-b7ed-54b405dea936",
+      "name": "Send a text message",
+      "webhookId": "8d6116ec-3ff6-4255-8557-6767adc104be",
+      "credentials": {
+        "telegramApi": {
+          "id": "n97tsK6WkU3QjJTx",
+          "name": "Telegram account 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "fromEmail": "mohamed.emad941227@gmail.com",
+        "toEmail": "mohamed.emad941227@gmail.com",
+        "subject": "=🔥 New Qualified Lead - {{ $json.lead_percentage }}",
+        "emailFormat": "text",
+        "text": "=🔥 New Qualified Lead\n\nName: {{ $json.first_name }}\nUsername: @{{ $json.username }}\n\nLead Percentage: {{ $json.lead_percentage }}\nLead Score: {{ $json.lead_score }}/100\nStatus: {{ $json.lead_status }}\n\nNeed:\n{{ $json.need }}\n\nBuying Intent:\n{{ $json.buying_intent }}\n\nBudget:\n{{ $json.budget }}\n\nTimeline:\n{{ $json.timeline }}\n\nSummary:\n{{ $json.sales_summary }}\n\nNext Action:\n{{ $json.next_action }}\n\nOriginal Message:\n{{ $json.customer_message }}\n\nSource:\n{{ $json.source }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 2.1,
+      "position": [
+        928,
+        -336
+      ],
+      "id": "8e07450a-e8a0-43a8-86db-71cbdccd3372",
+      "name": "Send an Email",
+      "webhookId": "3b5e667c-49c0-45a1-9317-340e2c8049b6",
+      "credentials": {
+        "smtp": {
+          "id": "3LpAbOD9HxZVU12k",
+          "name": "SMTP account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $('Code in JavaScript').item.json.chat_id }}",
+        "text": "=Thank you. Your request has been qualified successfully. A member of our sales team will contact you within the next 24 hours to discuss the next steps.",
+        "additionalFields": {
+          "appendAttribution": false
+        }
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        1200,
+        -336
+      ],
+      "id": "acdd601f-bdf1-4cbb-9f6d-82b3906ab131",
+      "name": "Send a text message1",
+      "webhookId": "a0a8c858-68d9-4c62-9d0a-6a473ad2bece",
+      "credentials": {
+        "telegramApi": {
+          "id": "n97tsK6WkU3QjJTx",
+          "name": "Telegram account 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "value": "1ASuOD9jvAd80PEgFGGdRNnliSFVJCEPc2j-oiBteXFw",
+          "mode": "list",
+          "cachedResultName": "Qualified Leads Documentation",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1ASuOD9jvAd80PEgFGGdRNnliSFVJCEPc2j-oiBteXFw/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "sheet1",
+          "mode": "name"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "Date": "={{ $json.date }}",
+            "Name": "={{ $json.first_name }}",
+            "Username": "={{ $json.username }}",
+            "Source": "={{ $json.source }}",
+            "Customer Message": "={{ $json.customer_message }}",
+            "Need": "={{ $json.need }}",
+            "Buying Intent": "={{ $json.buying_intent }}",
+            "Budget": "={{ $json.budget }}",
+            "Timeline": "={{ $json.timeline }}",
+            "Lead Score": "={{ $json.lead_score }}",
+            "AI Summary": "={{ $json.sales_summary }}",
+            "Documentation Sent": "Yes"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "Date",
+              "displayName": "Date",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Name",
+              "displayName": "Name",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Username",
+              "displayName": "Username",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Source",
+              "displayName": "Source",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Customer Message",
+              "displayName": "Customer Message",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Need",
+              "displayName": "Need",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Buying Intent",
+              "displayName": "Buying Intent",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Budget",
+              "displayName": "Budget",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Timeline",
+              "displayName": "Timeline",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Lead Score",
+              "displayName": "Lead Score",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "AI Summary",
+              "displayName": "AI Summary",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Documentation Sent",
+              "displayName": "Documentation Sent",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        656,
+        -336
+      ],
+      "id": "00a4d2be-7353-4001-adf3-870c66cfa8c2",
+      "name": "Append row in sheet",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "xSovNXVBaEaPxgGC",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "value": "1wszDA7SzH5MUnNBWeIhfD2OZHnFM58f21WRj6e3qLsE",
+          "mode": "list",
+          "cachedResultName": "Notqualified Leads Documentation",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1wszDA7SzH5MUnNBWeIhfD2OZHnFM58f21WRj6e3qLsE/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "sheet1",
+          "mode": "name"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "Date": "={{ $json.date }}",
+            "Name": "={{ $json.first_name }}",
+            "Username": "={{ $json.username }}",
+            "Source": "={{ $json.source }}",
+            "Customer Message": "={{ $json.customer_message }}",
+            "Need": "={{ $json.need }}",
+            "Buying Intent": "={{ $json.buying_intent }}",
+            "Budget": "={{ $json.budget }}",
+            "Timeline": "={{ $json.timeline }}",
+            "Lead Score": "={{ $json.lead_score }}",
+            "AI Summary": "={{ $json.sales_summary }}",
+            "Documentation Sent": "Yes"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "Date",
+              "displayName": "Date",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Name",
+              "displayName": "Name",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Username",
+              "displayName": "Username",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Source",
+              "displayName": "Source",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Customer Message",
+              "displayName": "Customer Message",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Need",
+              "displayName": "Need",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Buying Intent",
+              "displayName": "Buying Intent",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Budget",
+              "displayName": "Budget",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Timeline",
+              "displayName": "Timeline",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Lead Score",
+              "displayName": "Lead Score",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "AI Summary",
+              "displayName": "AI Summary",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Documentation Sent",
+              "displayName": "Documentation Sent",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        624,
+        48
+      ],
+      "id": "68060839-14fe-4003-8942-c67db7436915",
+      "name": "Append row in sheet1",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "xSovNXVBaEaPxgGC",
+          "name": "Google Sheets account"
+        }
+      }
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Telegram Trigger": {
+      "main": [
+        [
+          {
+            "node": "Message a model",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Message a model": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript": {
+      "main": [
+        [
+          {
+            "node": "If",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If": {
+      "main": [
+        [
+          {
+            "node": "Append row in sheet",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Append row in sheet1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send an Email": {
+      "main": [
+        [
+          {
+            "node": "Send a text message1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Append row in sheet": {
+      "main": [
+        [
+          {
+            "node": "Send an Email",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Append row in sheet1": {
+      "main": [
+        [
+          {
+            "node": "Send a text message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate"
+  },
+  "versionId": "a667f117-f7fb-4856-b0c3-e8a2c304de93",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "7ec7ef01c4cf0f0f03e7d557ff85839cece5fcaa498b18995a1d6c9f555c9ec0"
+  },
+  "id": "UbWVVItp2hGwzUnC",
+  "tags": []
+}
