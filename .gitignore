@@ -5,4 +5,3 @@
 credentials.json
 *.secret
 node_modules/
-.DS_Store

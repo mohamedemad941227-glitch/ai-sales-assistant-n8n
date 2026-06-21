@@ -1,0 +1,759 @@
+{
+  "name": "ai_sales_assistant",
+  "nodes": [
+    {
+      "parameters": {
+        "updates": [
+          "message"
+        ],
+        "additionalFields": {}
+      },
+      "type": "n8n-nodes-base.telegramTrigger",
+      "typeVersion": 1.3,
+      "position": [
+        -512,
+        -96
+      ],
+      "id": "110c80c2-f7e8-490a-bd8b-714006c4c7c5",
+      "name": "Receive Customer Message",
+      "webhookId": "90821267-5b94-4b9e-8ad3-21e0c9d048c1",
+      "credentials": {
+        "telegramApi": {
+          "id": "n97tsK6WkU3QjJTx",
+          "name": "Telegram account 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const telegram = $(\"Receive Customer Message\").first().json;\n\nconst chatId = telegram.message.chat.id;\nconst messageText = (telegram.message.text || \"\").trim();\nconst lowerText = messageText.toLowerCase();\n\nconst staticData = $getWorkflowStaticData(\"global\");\n\nif (!staticData.leadSessions) {\n  staticData.leadSessions = {};\n}\n\nconst startWords = [\n  \"hi\",\n  \"hello\",\n  \"hey\",\n  \"/start\",\n  \"start\",\n  \"اهلا\",\n  \"أهلا\",\n  \"مرحبا\",\n  \"هاي\"\n];\n\n// =====================================\n// Qualification Questions\n// =====================================\n\nconst questions = [\n  {\n    key: \"business_type\",\n    text: `Question 1/10\nWhat type of business do you have?\n\n1) Small/local business\n2) Growing business\n3) Established business with active sales`\n  },\n  {\n    key: \"problem\",\n    text: `Question 2/10\nWhat problem do you want to solve?\n\n1) Just exploring automation\n2) Repetitive customer messages\n3) Losing leads or sales because of slow follow-up`\n  },\n  {\n    key: \"lead_source\",\n    text: `Question 3/10\nWhere do your leads come from?\n\n1) Not sure / no regular leads\n2) One main source\n3) Multiple sources like website, Telegram, Facebook Ads, or WhatsApp`\n  },\n  {\n    key: \"daily_leads\",\n    text: `Question 4/10\nHow many leads or customer messages do you receive per day?\n\n1) 0–5\n2) 6–20\n3) More than 20`\n  },\n  {\n    key: \"budget\",\n    text: `Question 5/10\nWhat is your budget for this project?\n\n1) No budget yet\n2) $100–$300\n3) More than $300`\n  },\n  {\n    key: \"timeline\",\n    text: `Question 6/10\nWhen do you want to start?\n\n1) Not sure\n2) This month\n3) This week / as soon as possible`\n  },\n  {\n    key: \"decision_maker\",\n    text: `Question 7/10\nAre you the decision maker for this project?\n\n1) No\n2) Partly / I need approval\n3) Yes`\n  },\n  {\n    key: \"current_tools\",\n    text: `Question 8/10\nDo you currently use tools like Google Sheets, CRM, Email, Telegram, or WhatsApp?\n\n1) No tools\n2) Some tools\n3) Yes, and I want them connected`\n  },\n  {\n    key: \"urgency\",\n    text: `Question 9/10\nHow important is this problem for your business?\n\n1) Low priority\n2) Important\n3) Very urgent`\n  },\n  {\n    key: \"automation_goal\",\n    text: `Question 10/10\nWhat do you want the automation system to do?\n\n1) Basic automatic replies\n2) Collect and organize leads\n3) Qualify leads, follow up, and notify the sales team`\n  }\n];\n\n// =====================================\n// Labels for Each Selected Option\n// =====================================\n\nconst optionLabels = {\n  business_type: {\n    1: \"Small/local business\",\n    2: \"Growing business\",\n    3: \"Established business with active sales\"\n  },\n  problem: {\n    1: \"Just exploring automation\",\n    2: \"Repetitive customer messages\",\n    3: \"Losing leads or sales because of slow follow-up\"\n  },\n  lead_source: {\n    1: \"Not sure / no regular leads\",\n    2: \"One main source\",\n    3: \"Multiple sources\"\n  },\n  daily_leads: {\n    1: \"0–5\",\n    2: \"6–20\",\n    3: \"More than 20\"\n  },\n  budget: {\n    1: \"No budget yet\",\n    2: \"$100–$300\",\n    3: \"More than $300\"\n  },\n  timeline: {\n    1: \"Not sure\",\n    2: \"This month\",\n    3: \"This week / as soon as possible\"\n  },\n  decision_maker: {\n    1: \"No\",\n    2: \"Partly / needs approval\",\n    3: \"Yes\"\n  },\n  current_tools: {\n    1: \"No tools\",\n    2: \"Some tools\",\n    3: \"Yes, and wants them connected\"\n  },\n  urgency: {\n    1: \"Low priority\",\n    2: \"Important\",\n    3: \"Very urgent\"\n  },\n  automation_goal: {\n    1: \"Basic automatic replies\",\n    2: \"Collect and organize leads\",\n    3: \"Qualify leads, follow up, and notify the sales team\"\n  }\n};\n\n// =====================================\n// Helper Functions\n// =====================================\n\nfunction baseOutput(extra) {\n  return [\n    {\n      json: {\n        date: new Date().toISOString(),\n        chat_id: chatId,\n        customer_message: messageText,\n        first_name: telegram.message.from.first_name || \"\",\n        username: telegram.message.from.username || \"\",\n        source: \"Telegram\",\n        ...extra\n      }\n    }\n  ];\n}\n\nfunction scoreAnswer(answer) {\n  if (answer === 1) return 0;\n  if (answer === 2) return 50;\n  if (answer === 3) return 100;\n  return 0;\n}\n\nfunction getLeadStatus(score) {\n  if (score >= 80) return \"Hot Lead\";\n  if (score >= 50) return \"Warm Lead\";\n  return \"Weak Lead\";\n}\n\nfunction getBuyingIntent(score) {\n  if (score >= 80) return \"High\";\n  if (score >= 50) return \"Medium\";\n  return \"Low\";\n}\n\n// =====================================\n// Start or Restart Questionnaire\n// =====================================\n\nif (startWords.includes(lowerText)) {\n  staticData.leadSessions[chatId] = {\n    currentQuestion: 0,\n    answers: []\n  };\n\n  return baseOutput({\n    qualification_complete: false,\n\n    business_type: \"\",\n    problem: \"\",\n    need: \"Questionnaire started\",\n    lead_source: \"\",\n    daily_leads: \"\",\n    budget: \"Pending\",\n    timeline: \"Pending\",\n    decision_maker: \"\",\n    current_tools: \"\",\n    urgency: \"\",\n\n    buying_intent: \"Pending\",\n    lead_score: 0,\n    lead_percentage: \"0%\",\n    lead_status: \"Pending\",\n    documentation_sent: \"No\",\n\n    sales_summary:\n      \"Customer started the 10-question lead qualification process.\",\n\n    customer_reply: `Welcome 👋\n\nI will ask you 10 quick questions to understand your requirements.\n\nPlease answer every question using only:\n1, 2, or 3.\n\n${questions[0].text}\n\nRemaining questions: 9`\n  });\n}\n\n// =====================================\n// No Active Questionnaire\n// =====================================\n\nif (!staticData.leadSessions[chatId]) {\n  return baseOutput({\n    qualification_complete: false,\n\n    business_type: \"\",\n    problem: \"\",\n    need: \"No active questionnaire\",\n    lead_source: \"\",\n    daily_leads: \"\",\n    budget: \"Unknown\",\n    timeline: \"Unknown\",\n    decision_maker: \"\",\n    current_tools: \"\",\n    urgency: \"\",\n\n    buying_intent: \"Unknown\",\n    lead_score: 0,\n    lead_percentage: \"0%\",\n    lead_status: \"Pending\",\n    documentation_sent: \"No\",\n\n    sales_summary:\n      \"Customer sent a message without starting the qualification process.\",\n\n    customer_reply:\n      \"Please type hi to start the 10-question lead qualification process.\"\n  });\n}\n\nconst session = staticData.leadSessions[chatId];\n\n// =====================================\n// Validate Customer Answer\n// =====================================\n\nconst answer = Number(messageText);\n\nif (![1, 2, 3].includes(answer)) {\n  const currentQuestion = questions[session.currentQuestion];\n\n  return baseOutput({\n    qualification_complete: false,\n\n    business_type: \"\",\n    problem: \"\",\n    need: \"Invalid answer\",\n    lead_source: \"\",\n    daily_leads: \"\",\n    budget: \"Pending\",\n    timeline: \"Pending\",\n    decision_maker: \"\",\n    current_tools: \"\",\n    urgency: \"\",\n\n    buying_intent: \"Pending\",\n    lead_score: 0,\n    lead_percentage: \"0%\",\n    lead_status: \"Pending\",\n    documentation_sent: \"No\",\n\n    sales_summary:\n      \"Customer submitted an invalid answer during the questionnaire.\",\n\n    customer_reply: `Please answer using only 1, 2, or 3.\n\n${currentQuestion.text}\n\nRemaining questions: ${questions.length - session.currentQuestion - 1}`\n  });\n}\n\n// =====================================\n// Save Current Answer\n// =====================================\n\nsession.answers.push(answer);\nsession.currentQuestion += 1;\n\n// =====================================\n// Send the Next Question\n// =====================================\n\nif (session.currentQuestion < questions.length) {\n  const nextQuestion = questions[session.currentQuestion];\n  const remaining = questions.length - session.currentQuestion - 1;\n\n  return baseOutput({\n    qualification_complete: false,\n\n    business_type: \"\",\n    problem: \"\",\n    need: \"Questionnaire in progress\",\n    lead_source: \"\",\n    daily_leads: \"\",\n    budget: \"Pending\",\n    timeline: \"Pending\",\n    decision_maker: \"\",\n    current_tools: \"\",\n    urgency: \"\",\n\n    buying_intent: \"Pending\",\n    lead_score: 0,\n    lead_percentage: \"0%\",\n    lead_status: \"Pending\",\n    documentation_sent: \"No\",\n\n    sales_summary:\n      `Customer completed question ${session.currentQuestion} of 10.`,\n\n    customer_reply: `Thank you ✅\n\n${nextQuestion.text}\n\nRemaining questions: ${remaining}`\n  });\n}\n\n// =====================================\n// Questionnaire Completed\n// =====================================\n\nconst answers = session.answers;\n\n// Remove the completed session\ndelete staticData.leadSessions[chatId];\n\n// Calculate score\nconst answerScores = answers.map(scoreAnswer);\n\nconst totalScore = answerScores.reduce(\n  (sum, currentScore) => sum + currentScore,\n  0\n);\n\nconst leadScore = Math.round(\n  totalScore / questions.length\n);\n\nconst leadStatus = getLeadStatus(leadScore);\nconst buyingIntent = getBuyingIntent(leadScore);\n\n// Convert numeric answers into readable information\nconst mapped = {};\n\nquestions.forEach((question, index) => {\n  mapped[question.key] =\n    optionLabels[question.key][answers[index]];\n});\n\n// Create sales summary\nconst salesSummary = `Lead completed the 10-question qualification process.\n\nLead Score: ${leadScore}%\nLead Status: ${leadStatus}\nBuying Intent: ${buyingIntent}\n\nBusiness Type: ${mapped.business_type}\nProblem: ${mapped.problem}\nLead Source: ${mapped.lead_source}\nDaily Leads: ${mapped.daily_leads}\nBudget: ${mapped.budget}\nTimeline: ${mapped.timeline}\nDecision Maker: ${mapped.decision_maker}\nCurrent Tools: ${mapped.current_tools}\nUrgency: ${mapped.urgency}\nAutomation Goal: ${mapped.automation_goal}`;\n\n// Customer does not see the internal score\nconst customerReply =\n  leadScore >= 70\n    ? `Thank you. Your request has been received successfully.\n\nA member of our sales team will contact you within the next 24 hours to discuss your requirements and the next steps.`\n    : `Thank you for your answers.\n\nOur team will review your request and get back to you if your requirements match our services.`;\n\n// Final output after question 10\nreturn baseOutput({\n  qualification_complete: true,\n\n  business_type: mapped.business_type,\n  problem: mapped.problem,\n  need: mapped.automation_goal,\n  lead_source: mapped.lead_source,\n  daily_leads: mapped.daily_leads,\n  budget: mapped.budget,\n  timeline: mapped.timeline,\n  decision_maker: mapped.decision_maker,\n  current_tools: mapped.current_tools,\n  urgency: mapped.urgency,\n\n  buying_intent: buyingIntent,\n  lead_score: leadScore,\n  lead_percentage: `${leadScore}%`,\n  lead_status: leadStatus,\n  documentation_sent: leadScore >= 70 ? \"Yes\" : \"No\",\n\n  sales_summary: salesSummary,\n  customer_reply: customerReply\n});"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -272,
+        -96
+      ],
+      "id": "589a5ffd-2277-4259-894f-c730a6c66dd7",
+      "name": "Manage Qualification"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "9aae44e3-f64e-4ce5-9c8d-27544de33fa4",
+              "leftValue": "={{ $json.lead_score }}",
+              "rightValue": 70,
+              "operator": {
+                "type": "number",
+                "operation": "gte"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        464,
+        -112
+      ],
+      "id": "23d1027d-50a3-4214-9012-4b5175098151",
+      "name": "Check Lead Score"
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "value": "1ASuOD9jvAd80PEgFGGdRNnliSFVJCEPc2j-oiBteXFw",
+          "mode": "list",
+          "cachedResultName": "Qualified Leads Documentation",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1ASuOD9jvAd80PEgFGGdRNnliSFVJCEPc2j-oiBteXFw/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "sheet1",
+          "mode": "name"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "Date": "={{ $json.date }}",
+            "Name": "={{ $json.first_name }}",
+            "Username": "={{ $json.username }}",
+            "Source": "={{ $json.source }}",
+            "Customer Message": "={{ $json.customer_message }}",
+            "Need": "={{ $json.need }}",
+            "Buying Intent": "={{ $json.buying_intent }}",
+            "Budget": "={{ $json.budget }}",
+            "Timeline": "={{ $json.timeline }}",
+            "Lead Score": "={{ $json.lead_score }}",
+            "AI Summary": "={{ $json.sales_summary }}",
+            "Documentation Sent": "Yes"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "Date",
+              "displayName": "Date",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Name",
+              "displayName": "Name",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Username",
+              "displayName": "Username",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Source",
+              "displayName": "Source",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Customer Message",
+              "displayName": "Customer Message",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Need",
+              "displayName": "Need",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Buying Intent",
+              "displayName": "Buying Intent",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Budget",
+              "displayName": "Budget",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Timeline",
+              "displayName": "Timeline",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Lead Score",
+              "displayName": "Lead Score",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "AI Summary",
+              "displayName": "AI Summary",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Documentation Sent",
+              "displayName": "Documentation Sent",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        672,
+        -448
+      ],
+      "id": "00a4d2be-7353-4001-adf3-870c66cfa8c2",
+      "name": "Save Qualified Lead",
+      "retryOnFail": true,
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "xSovNXVBaEaPxgGC",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "fromEmail": "mohamed.emad941227@gmail.com",
+        "toEmail": "mohamed.emad941227@gmail.com",
+        "subject": "=🔥 New Qualified Lead - {{ $json.lead_percentage }}",
+        "emailFormat": "text",
+        "text": "=🔥 New Qualified Lead\n\nName:\n{{ $('Manage Qualification').item.json.first_name }}\n\nUsername:\n@{{ $('Manage Qualification').item.json.username }}\n\nLead Percentage:\n{{ $('Manage Qualification').item.json.lead_percentage }}\n\nLead Score:\n{{ $('Manage Qualification').item.json.lead_score }}/100\n\nStatus:\n{{ $('Manage Qualification').item.json.lead_status }}\n\nNeed:\n{{ $('Manage Qualification').item.json.need }}\n\nBuying Intent:\n{{ $('Manage Qualification').item.json.buying_intent }}\n\nBudget:\n{{ $('Manage Qualification').item.json.budget }}\n\nTimeline:\n{{ $('Manage Qualification').item.json.timeline }}\n\nSummary:\n{{ $('Manage Qualification').item.json.sales_summary }}\n\nOriginal Message:\n{{ $('Manage Qualification').item.json.customer_message }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 2.1,
+      "position": [
+        912,
+        -448
+      ],
+      "id": "8e07450a-e8a0-43a8-86db-71cbdccd3372",
+      "name": "Notify Sales Team",
+      "webhookId": "3b5e667c-49c0-45a1-9317-340e2c8049b6",
+      "retryOnFail": true,
+      "credentials": {
+        "smtp": {
+          "id": "3LpAbOD9HxZVU12k",
+          "name": "SMTP account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $('Manage Qualification').item.json.chat_id }}",
+        "text": "=Thank you. Your request has been qualified successfully. A member of our sales team will contact you within the next 24 hours to discuss the next steps.",
+        "additionalFields": {
+          "appendAttribution": false
+        }
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        1120,
+        -448
+      ],
+      "id": "acdd601f-bdf1-4cbb-9f6d-82b3906ab131",
+      "name": "Confirm Qualified Lead",
+      "webhookId": "a0a8c858-68d9-4c62-9d0a-6a473ad2bece",
+      "retryOnFail": true,
+      "credentials": {
+        "telegramApi": {
+          "id": "n97tsK6WkU3QjJTx",
+          "name": "Telegram account 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "value": "1wszDA7SzH5MUnNBWeIhfD2OZHnFM58f21WRj6e3qLsE",
+          "mode": "list",
+          "cachedResultName": "Notqualified Leads Documentation",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1wszDA7SzH5MUnNBWeIhfD2OZHnFM58f21WRj6e3qLsE/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "sheet1",
+          "mode": "name"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "Date": "={{ $json.date }}",
+            "Name": "={{ $json.first_name }}",
+            "Username": "={{ $json.username }}",
+            "Source": "={{ $json.source }}",
+            "Customer Message": "={{ $json.customer_message }}",
+            "Need": "={{ $json.need }}",
+            "Buying Intent": "={{ $json.buying_intent }}",
+            "Budget": "={{ $json.budget }}",
+            "Timeline": "={{ $json.timeline }}",
+            "Lead Score": "={{ $json.lead_score }}",
+            "AI Summary": "={{ $json.sales_summary }}",
+            "Documentation Sent": "Yes"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "Date",
+              "displayName": "Date",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Name",
+              "displayName": "Name",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Username",
+              "displayName": "Username",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Source",
+              "displayName": "Source",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Customer Message",
+              "displayName": "Customer Message",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Need",
+              "displayName": "Need",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Buying Intent",
+              "displayName": "Buying Intent",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Budget",
+              "displayName": "Budget",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Timeline",
+              "displayName": "Timeline",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Lead Score",
+              "displayName": "Lead Score",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "AI Summary",
+              "displayName": "AI Summary",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Documentation Sent",
+              "displayName": "Documentation Sent",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        704,
+        -80
+      ],
+      "id": "68060839-14fe-4003-8942-c67db7436915",
+      "name": "Save Unqualified Lead",
+      "retryOnFail": true,
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "xSovNXVBaEaPxgGC",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $('Manage Qualification').item.json.chat_id }}",
+        "text": "={{ $('Manage Qualification').item.json.customer_reply }}",
+        "replyMarkup": "=None",
+        "forceReply": {},
+        "replyKeyboardOptions": {},
+        "replyKeyboardRemove": {},
+        "additionalFields": {
+          "appendAttribution": false
+        }
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        944,
+        -80
+      ],
+      "id": "20391957-f35e-4978-b7ed-54b405dea936",
+      "name": "Reply to Unqualified Lead",
+      "webhookId": "8d6116ec-3ff6-4255-8557-6767adc104be",
+      "retryOnFail": true,
+      "credentials": {
+        "telegramApi": {
+          "id": "n97tsK6WkU3QjJTx",
+          "name": "Telegram account 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "35470b03-9598-4f59-9c96-f7a234494315",
+              "leftValue": "={{ $json.chat_id }}",
+              "rightValue": "",
+              "operator": {
+                "type": "object",
+                "operation": "exists",
+                "singleValue": true
+              }
+            },
+            {
+              "id": "23af9988-3cee-4dc6-b027-552989f46529",
+              "leftValue": "={{ $json.customer_reply }}",
+              "rightValue": "",
+              "operator": {
+                "type": "object",
+                "operation": "notEmpty",
+                "singleValue": true
+              }
+            },
+            {
+              "id": "e2ff781a-dfe2-41f5-a5e0-b72443db8dc4",
+              "leftValue": "={{ $json.lead_score }}",
+              "rightValue": 0,
+              "operator": {
+                "type": "number",
+                "operation": "gte"
+              }
+            },
+            {
+              "id": "1f6c731f-b0ba-4448-b19b-f14b2163452d",
+              "leftValue": "={{ $json.lead_score }}",
+              "rightValue": 100,
+              "operator": {
+                "type": "number",
+                "operation": "lte"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        256,
+        -96
+      ],
+      "id": "62043850-2693-42c3-899d-9405cb6963ce",
+      "name": "Validate Lead Data"
+    },
+    {
+      "parameters": {
+        "errorMessage": "Lead validation failed. Chat ID, customer reply, or lead score is missing or invalid."
+      },
+      "type": "n8n-nodes-base.stopAndError",
+      "typeVersion": 1,
+      "position": [
+        688,
+        112
+      ],
+      "id": "1f5d86ef-e4f4-41d8-9857-c3c944a00cb4",
+      "name": "Stop and Error"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "003f0d6a-3fba-47a1-9f5c-b6e5a4e8c79f",
+              "leftValue": "={{ $json.qualification_complete }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        -32,
+        -96
+      ],
+      "id": "4a393dc0-94b0-441b-a496-245192756cae",
+      "name": "Questionnaire Complete?"
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $json.chat_id }}",
+        "text": "={{ $json.customer_reply }}",
+        "additionalFields": {
+          "appendAttribution": false
+        }
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        256,
+        128
+      ],
+      "id": "2736f811-7f5c-4e9a-b0ab-bc4df11209f9",
+      "name": "Send a text message",
+      "webhookId": "78fa9341-b0f2-4f60-90e7-d5865ba45f9b",
+      "credentials": {
+        "telegramApi": {
+          "id": "n97tsK6WkU3QjJTx",
+          "name": "Telegram account 2"
+        }
+      }
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Receive Customer Message": {
+      "main": [
+        [
+          {
+            "node": "Manage Qualification",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Manage Qualification": {
+      "main": [
+        [
+          {
+            "node": "Questionnaire Complete?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Lead Score": {
+      "main": [
+        [
+          {
+            "node": "Save Qualified Lead",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Save Unqualified Lead",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Save Qualified Lead": {
+      "main": [
+        [
+          {
+            "node": "Notify Sales Team",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Notify Sales Team": {
+      "main": [
+        [
+          {
+            "node": "Confirm Qualified Lead",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Save Unqualified Lead": {
+      "main": [
+        [
+          {
+            "node": "Reply to Unqualified Lead",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Reply to Unqualified Lead": {
+      "main": [
+        []
+      ]
+    },
+    "Validate Lead Data": {
+      "main": [
+        [
+          {
+            "node": "Check Lead Score",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Stop and Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Questionnaire Complete?": {
+      "main": [
+        [
+          {
+            "node": "Validate Lead Data",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Send a text message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "timeSavedMode": "fixed",
+    "errorWorkflow": "W2j9EvZ35ZNoE8LJ",
+    "callerPolicy": "workflowsFromSameOwner",
+    "availableInMCP": false
+  },
+  "versionId": "d17efa59-7431-4345-965d-6da0fa58db13",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "7ec7ef01c4cf0f0f03e7d557ff85839cece5fcaa498b18995a1d6c9f555c9ec0"
+  },
+  "nodeGroups": [],
+  "id": "UbWVVItp2hGwzUnC",
+  "tags": []
+}
